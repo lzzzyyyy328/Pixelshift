@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pixelshiftsr"
+version = "1.0.0"
+description = "Physics-guided pixel-shift super-resolution: HR degradation to shifted LR frames and HR reconstruction."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.23",
+  "opencv-python>=4.8",
+  "scikit-image>=0.21",
+  "matplotlib>=3.7",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+pssr = "pixelshiftsr.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pixelshiftsr*"]

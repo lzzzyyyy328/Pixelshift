@@ -1,0 +1,74 @@
+{
+  "hr_path": "runs/pipeline_bicubic_noblur_data2/hr_gt.png",
+  "lr_dir": "runs/pipeline_bicubic_noblur_data2/lr_frames",
+  "scale": 2,
+  "shift_unit": "lr",
+  "input_shifts": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.5,
+      0.0
+    ],
+    [
+      0.0,
+      0.5
+    ],
+    [
+      0.5,
+      0.5
+    ]
+  ],
+  "shifts_hr_pixels": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "reconstruction": {
+    "mode": "bicubic",
+    "scale": 2,
+    "shifts_hr": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ],
+      [
+        1.0,
+        1.0
+      ]
+    ]
+  },
+  "metrics_sr": {
+    "PSNR": 28.53390012574778,
+    "SSIM": 0.8311341404914856,
+    "LaplacianSharpness": 0.0011672754772007465
+  },
+  "metrics_bicubic": {
+    "PSNR": 28.53390012574778,
+    "SSIM": 0.8311341404914856,
+    "LaplacianSharpness": 0.0011672754772007465
+  }
+}

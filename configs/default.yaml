@@ -1,0 +1,27 @@
+# PixelShiftSR default configuration
+# This config documents the recommended values. The CLI currently reads arguments
+# directly; use this file as a reproducible record for your experiments.
+
+scale: 2
+shifts: "0,0;0.5,0;0,0.5;0.5,0.5"
+
+# shift_unit:
+#   lr: dx=0.5 means half of a low-resolution sensor pixel. For scale=2, this is 1 HR-grid pixel.
+#   hr: dx=0.5 means directly 0.5 HR-grid pixel. This reproduces the uploaded prototype script.
+shift_unit: lr
+
+degradation:
+  blur_kernel: 3
+  blur_sigma: 0.0
+  blur_stage: after_downsample
+  noise_poisson_a: 0.001
+  noise_gaussian_b: 0.0001
+  downsample: area
+  border: replicate
+
+reconstruction:
+  mode: ibp
+  iterations: 80
+  step_size: 0.20
+  tv_weight: 0.0
+  laplacian_weight: 0.0

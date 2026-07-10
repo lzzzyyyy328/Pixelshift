@@ -1,0 +1,74 @@
+{
+  "hr_path": "runs/pipeline_fuse_noblur/hr_gt.png",
+  "lr_dir": "runs/pipeline_fuse_noblur/lr_frames",
+  "scale": 2,
+  "shift_unit": "lr",
+  "input_shifts": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.5,
+      0.0
+    ],
+    [
+      0.0,
+      0.5
+    ],
+    [
+      0.5,
+      0.5
+    ]
+  ],
+  "shifts_hr_pixels": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "reconstruction": {
+    "mode": "fuse",
+    "scale": 2,
+    "shifts_hr": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ],
+      [
+        1.0,
+        1.0
+      ]
+    ]
+  },
+  "metrics_sr": {
+    "PSNR": 15.31084716958999,
+    "SSIM": 0.8641624450683594,
+    "LaplacianSharpness": 0.012294951826334
+  },
+  "metrics_bicubic": {
+    "PSNR": 12.158388241550721,
+    "SSIM": 0.6975212693214417,
+    "LaplacianSharpness": 0.010640792548656464
+  }
+}

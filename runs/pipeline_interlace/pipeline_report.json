@@ -1,0 +1,74 @@
+{
+  "hr_path": "runs/pipeline_interlace/hr_gt.png",
+  "lr_dir": "runs/pipeline_interlace/lr_frames",
+  "scale": 2,
+  "shift_unit": "lr",
+  "input_shifts": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.5,
+      0.0
+    ],
+    [
+      0.0,
+      0.5
+    ],
+    [
+      0.5,
+      0.5
+    ]
+  ],
+  "shifts_hr_pixels": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "reconstruction": {
+    "mode": "interlace",
+    "scale": 2,
+    "shifts_hr": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ],
+      [
+        1.0,
+        1.0
+      ]
+    ]
+  },
+  "metrics_sr": {
+    "PSNR": 9.120699585595721,
+    "SSIM": 0.30042514204978943,
+    "LaplacianSharpness": 0.03577724099159241
+  },
+  "metrics_bicubic": {
+    "PSNR": 10.587868189146812,
+    "SSIM": 0.4680233299732208,
+    "LaplacianSharpness": 0.0031054974533617496
+  }
+}
