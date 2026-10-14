@@ -1,0 +1,43 @@
+# Copy this file for one fixed camera/lens/exposure setup, then replace the
+# model parameters with values from calibration_report.json.
+schema_version: 1
+
+scale: 2
+shifts:
+  - [0.0, 0.0]
+  - [0.5, 0.0]
+  - [0.0, 0.5]
+  - [0.5, 0.5]
+shift_unit: lr
+
+model:
+  blur_type: defocus
+  blur_kernel: 3
+  blur_sigma: 0.0
+  blur_stage: before_downsample
+  downsample: area
+  border: replicate
+
+registration:
+  mode: estimate
+  upsample_factor: 100
+  highpass_sigma: 2.0
+  ecc_iterations: 100
+  min_confidence: 0.60
+  max_shift_lr: 2.0
+  min_accepted_frames: 4
+  keep_rejected: false
+
+reconstruction:
+  mode: ibp
+  iterations: 100
+  step_size: 0.15
+  robust_loss: huber
+  huber_delta: 0.03
+  tolerance: 0.00001
+  patience: 10
+  min_iterations: 15
+  tv_weight: 0.0
+  laplacian_weight: 0.0
+  no_progress: false
+  save_debug: true

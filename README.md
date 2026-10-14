@@ -1,318 +1,209 @@
-# PixelShiftSR_Mature
+# PixelShiftSR 2.0
 
-一个面向 **像素位移超分辨率** 的可直接运行项目：
+面向像素位移超分辨率实验与工业成像验证的完整工程。项目覆盖物理退化、亚像素配准、置信度筛帧、鲁棒迭代反投影、模型标定、无真值评价和可追溯报告，可用于形成专利技术交底所需的实现与实验依据。
 
-1. 将一张高分辨率图像 `HR` 按照亚像素位移、模糊、下采样、噪声退化成四张低分辨率图像 `LR_00 ~ LR_03`；
-2. 再利用这四张低分辨率图像重建高分辨率图像 `SR`；
-3. 输出 PSNR、SSIM、误差图、对比图和完整 JSON 报告。
+> 本项目能提供技术实现和实验材料，但软件本身不等于已经具备专利授权条件。申请前仍需检索现有技术，并由专利代理师结合真实硬件方案确定权利要求范围。
 
-本项目重构并工程化了你的原始脚本思想：
+## 核心能力
 
-```text
-HR image -> sub-pixel shift -> downsample -> Gaussian blur -> noise -> four LR frames
-four LR frames -> pixel-shift reconstruction -> SR image
-```
+| 模块 | 能力 |
+| --- | --- |
+| 成像模型 | 光学 PSF、亚像素位移、像素积分、泊松-高斯噪声 |
+| 自动配准 | 相位相关粗配准、ECC 精配准、置信度评分、异常帧剔除 |
+| 超分重建 | 双三次、直接插值、位移融合、置信度加权鲁棒 IBP |
+| 模型标定 | 从已知 HR 标定靶和 LR 实拍序列搜索 PSF，并拟合噪声参数 |
+| 质量评价 | PSNR、SSIM、RMSE、清晰度、Tenengrad、重投影一致性 |
+| 证据留存 | 输入 SHA-256、完整参数、依赖版本、逐帧指标、收敛曲线 |
 
----
+统一位移约定：正 `dx/dy` 表示图像内容向右/向下移动。报告同时保存前向位移和对齐位移，避免符号混淆。
 
-## 1. 安装
+## 安装
 
-```bash
-cd PixelShiftSR_Mature
-pip install -r requirements.txt
-pip install -e .
-```
-
-安装后可以使用两种入口：
+要求 Python 3.9 或更高版本。
 
 ```bash
+python -m pip install -e ".[dev]"
 python main.py --help
-# 或
-pssr --help
 ```
 
----
+安装后也可以使用命令 `pssr` 代替 `python main.py`。
 
-## 2. 一键完整 demo：HR -> 四张 LR -> SR
+## 一键验收
+
+Windows PowerShell：
+
+```powershell
+.\scripts\run_demo.ps1
+```
+
+Linux 或 macOS：
 
 ```bash
 bash scripts/run_demo.sh
 ```
 
-输出目录：
-
-```text
-runs/demo_pipeline/
-├── hr_gt.png                 # 高分辨率真值
-├── lr_frames/                # 四张退化后的低分辨率图像
-│   ├── lr_00.png
-│   ├── lr_01.png
-│   ├── lr_02.png
-│   └── lr_03.png
-├── bicubic_baseline.png      # 单纯双三次/平均上采样基线
-├── sr_result.png             # 像素位移超分结果
-├── comparison.png            # GT / LR / SR 可视化对比
-├── error_map.png             # 误差图
-└── pipeline_report.json      # 指标与实验配置
-```
-
----
-
-## 3. 使用你自己的高分辨率图像生成四张低分辨率图像
-
-假设你的高分辨率图像是：
-
-```text
-data/hr_gt.png
-```
-
-运行：
-
-```bash
-python main.py degrade \
-  --hr data/hr_gt.png \
-  --output runs/my_lr \
-  --scale 2 \
-  --shifts "0,0;0.5,0;0,0.5;0.5,0.5" \
-  --shift-unit lr \
-  --blur-kernel 3 \
-  --blur-stage after_downsample \
-  --noise-poisson-a 0.0 \
-  --noise-gaussian-b 0.000984
-```
-
-生成：
-
-```text
-runs/my_lr/
-├── lr_00.png
-├── lr_01.png
-├── lr_02.png
-├── lr_03.png
-└── degradation_meta.json
-```
-
----
-
-## 4. 从四张低分辨率图像重建高分辨率图像
-
-```bash
-python main.py reconstruct \
-  --input runs/my_lr \
-  --output runs/my_recon \
-  --gt data/hr_gt.png \
-  --scale 2 \
-  --shifts "0,0;0.5,0;0,0.5;0.5,0.5" \
-  --shift-unit lr \
-  --mode ibp \
-  --iterations 80 \
-  --step-size 0.20 \
-  --blur-kernel 3 \
-  --blur-stage after_downsample \
-  --save-debug
-```
-
-输出：
-
-```text
-runs/my_recon/
-├── sr_result.png
-├── bicubic_baseline.png
-├── comparison.png
-├── error_map.png
-└── reconstruction_report.json
-```
-
----
-
-## 5. 三种重建模式
-
-### 5.1 `bicubic`
-
-普通上采样基线，只用于对比。
-
-```bash
---mode bicubic
-```
-
-### 5.2 `interlace`
-
-已知位移且严格落在 2x HR 网格时使用。理想情况下，四张图分别填入：
-
-```text
-HR[0::2, 0::2]
-HR[0::2, 1::2]
-HR[1::2, 0::2]
-HR[1::2, 1::2]
-```
-
-```bash
---mode interlace
-```
-
-### 5.3 `fuse`
-
-先把每张 LR 上采样到 HR 网格，再根据位移反向对齐和加权平均。
-适合位移不是严格整数 HR 网格的情况。
-
-```bash
---mode fuse
-```
-
-### 5.4 `ibp` / `inverse`
-
-推荐正式实验使用。
-
-IBP 是 iterative back-projection，即让重建出来的 SR 图像经过同样的退化模型后，尽量重新生成原始四张 LR 图像。
-
-```bash
---mode ibp
-```
-
----
-
-## 6. 关于 `shift-unit` 的重要说明
-
-项目支持两种位移单位。
-
-### 6.1 推荐物理定义：`--shift-unit lr`
-
-```bash
---shifts "0,0;0.5,0;0,0.5;0.5,0.5" --shift-unit lr
-```
-
-含义：`0.5` 表示 **半个低分辨率传感器像素**。
-
-当 `scale=2` 时，半个 LR 像素等于 `1` 个 HR 网格像素。这更符合真实像素位移超分：
-
-```text
-LR pixel size = 2 HR pixels
-0.5 LR pixel = 1 HR pixel
-```
-
-### 6.2 兼容你的原始脚本：`--shift-unit hr`
-
-你的原始代码中：
-
-```python
-shifts = [(dx/scale, dy/scale) for dx in range(2) for dy in range(2)]
-cv2.warpAffine(hr_bayer, M, (W, H))
-```
-
-也就是在 HR 图像上直接平移 `0` 或 `0.5` 个 HR 像素。
-为了完全复现实验脚本，可以使用：
-
-```bash
-bash scripts/run_legacy_like.sh
-```
-
-或手动运行：
+也可以直接运行小型实验：
 
 ```bash
 python main.py pipeline \
-  --output runs/legacy_like_pipeline \
-  --shift-unit hr \
-  --shifts "0,0;0.5,0;0,0.5;0.5,0.5" \
-  --noise-poisson-a 0.0 \
-  --noise-gaussian-b 0.000984
+  --config configs/default.yaml \
+  --output runs/demo \
+  --preset default \
+  --height 256 --width 256 \
+  --iterations 40 --no-progress
 ```
 
----
+主要输出：
 
-## 7. 针对你们真实系统的推荐命令
+```text
+runs/demo/
+|-- hr_gt.png
+|-- lr_frames/
+|   |-- lr_00.png ... lr_03.png
+|   `-- degradation_meta.json
+|-- sr_result.png
+|-- sr_result.npy
+|-- bicubic_baseline.png
+|-- comparison.png
+|-- convergence.png
+|-- error_map.png
+`-- pipeline_report.json
+```
 
-你们的实验条件是：
+PNG 默认保存为 16 位，`sr_result.npy` 保存未经量化的 `float32` 重建结果。
 
-- 相机原始图像：1024 × 1024
-- 像素尺寸：5 μm
-- 目标重建：2048 × 2048
-- 传感器移动：2.5 μm = 0.5 LR pixel
-- 四张图：`(0,0), (0.5,0), (0,0.5), (0.5,0.5)` LR-pixel units
+## 重建真实序列
 
-推荐使用：
+将同一场景的连续采集帧放入一个目录，例如 `data/real_lr/`。建议锁定曝光、增益、焦距和白平衡，并确保平台每次位移后充分稳定。
+
+```powershell
+.\scripts\run_real.ps1 -InputDirectory data\real_lr
+```
+
+等价命令：
 
 ```bash
 python main.py reconstruct \
+  --config configs/default.yaml \
   --input data/real_lr \
-  --output runs/real_recon \
-  --scale 2 \
-  --shifts "0,0;0.5,0;0,0.5;0.5,0.5" \
-  --shift-unit lr \
-  --mode ibp \
-  --iterations 100 \
-  --step-size 0.15 \
-  --blur-kernel 3 \
-  --blur-stage after_downsample \
+  --input-pattern "*.png" \
+  --output runs/real_reconstruction \
+  --registration estimate \
   --save-debug
 ```
 
-如果真实图像中噪声明显，可以尝试：
+自动配准会在报告中记录每帧的实际位移、相关系数、置信度、重投影误差和是否被采用。若位移由高精度闭环平台直接提供，可使用 `--registration known` 和 `--shifts`。
+
+## 标定成像模型
+
+准备一张已知高分辨率标定靶图像和对应的低分辨率采集序列：
 
 ```bash
---tv-weight 0.05
+python main.py calibrate \
+  --hr data/calibration/hr_target.png \
+  --input data/calibration/lr_frames \
+  --input-pattern "*.png" \
+  --output runs/calibration \
+  --registration estimate \
+  --blur-types defocus,gaussian \
+  --blur-kernels 1,3,5,7 \
+  --blur-sigmas 0.6,1.0,1.4
 ```
 
-如果出现振铃或过锐，可以降低：
+`calibration_report.json` 会给出最佳 PSF 参数、候选模型误差排序，以及 `variance = a * signal + b` 的噪声拟合结果。正式实验应把标定值写回独立配置文件并冻结。
+
+## 对比与消融实验
+
+专利技术效果不应只展示单一结果。`benchmark` 会在同一组输入和位移上依次运行双三次、位移融合、L2 IBP 和 Huber IBP，并按 PSNR 或无真值重投影误差排序：
 
 ```bash
---step-size 0.08
+python main.py benchmark \
+  --config configs/default.yaml \
+  --input data/real_lr \
+  --input-pattern "*.png" \
+  --output runs/benchmark \
+  --registration estimate \
+  --variants bicubic,fuse,ibp_l2,ibp_huber
 ```
 
----
+提供 `--gt` 时按 PSNR 排序；没有真值时按加权重投影 MSE 排序。输出包括每种方法的 16 位 PNG、float32 NPY、收敛曲线、耗时、完整指标和 `benchmark_report.json`。
 
-## 8. 文件结构
+## 配置文件
+
+[`configs/default.yaml`](configs/default.yaml) 已经可以被程序直接读取，不再只是参数说明。配置文件包含：
+
+- `model`：光学模糊、采样和边界模型；
+- `degradation`：噪声、随机种子和输出位深；
+- `registration`：粗精配准、阈值和筛帧规则；
+- `reconstruction`：鲁棒损失、迭代、收敛和正则化；
+- `calibration`：PSF 搜索空间。
+
+真实设备可从 [`configs/real_template.yaml`](configs/real_template.yaml) 复制一份独立配置，再写入本机标定结果。
+
+命令行显式参数优先于 YAML，例如：
+
+```bash
+python main.py pipeline --config configs/default.yaml --iterations 20
+```
+
+## 算法定义
+
+第 `k` 帧的成像过程表示为：
 
 ```text
-PixelShiftSR_Mature/
-├── pixelshiftsr/
-│   ├── degradation.py        # HR -> shifted LR forward degradation model
-│   ├── reconstruction.py     # bicubic / interlace / fuse / IBP reconstruction
-│   ├── registration.py       # phase correlation registration utility
-│   ├── metrics.py            # PSNR / SSIM / sharpness
-│   ├── visualization.py      # comparison and error-map generation
-│   ├── synthetic.py          # synthetic HR image and RGGB mask generator
-│   ├── io.py                 # image I/O
-│   ├── utils.py              # shift parsing, dtype conversion
-│   └── cli.py                # command-line interface
-├── configs/
-│   └── default.yaml
-├── scripts/
-│   ├── run_demo.sh
-│   └── run_legacy_like.sh
-├── tests/
-│   └── test_smoke.py
-├── requirements.txt
-├── pyproject.toml
-├── main.py
-└── README.md
+y_k = D(B(T(s_k)x)) + n_k
 ```
 
----
-
-## 9. 快速检查项目是否可用
-
-```bash
-pytest tests
-```
-
-也可以直接跑：
-
-```bash
-python main.py pipeline --output runs/check --height 128 --width 128 --iterations 5
-```
-
----
-
-## 10. 研究建议
-
-建议你正式实验时保留三组结果：
-
-1. `bicubic_baseline.png`：普通上采样；
-2. `fuse`：位移对齐融合；
-3. `ibp`：物理退化一致性重建。
-
-论文或汇报中可以表达为：
+其中 `T` 为亚像素平移，`B` 为标定 PSF，`D` 为像素积分和降采样，`n_k` 为信号相关噪声。重建采用置信度加权的鲁棒数据一致性目标：
 
 ```text
-We first synthesize four sub-pixel shifted LR observations from an HR image using a controlled forward degradation model. Then, the HR image is reconstructed by enforcing consistency between the recovered HR estimate and all LR observations under the same degradation model.
+min_x sum_k w_k * Huber(y_k - D(B(T(s_k)x))) + regularization(x)
 ```
+
+反投影包含降采样、位移和对称 PSF 的近似伴随算子，并使用覆盖度归一化。该实现与旧版“残差直接放大再平均”不同。
+
+## 验证结果
+
+固定随机种子、128 x 128 通用测试图、4 帧、2 倍重建、40 次迭代：
+
+| 条件 | SR PSNR | 双三次 PSNR | 增益 | 重投影 MSE 降幅 |
+| --- | ---: | ---: | ---: | ---: |
+| 无模糊、无噪声 | 31.41 dB | 22.39 dB | +9.02 dB | 99.46% |
+| 3 像素散焦、泊松-高斯噪声 | 26.54 dB | 21.94 dB | +4.60 dB | 93.54% |
+
+自动配准验收中，目标半像素位移被估计为约 `0.51` 至 `0.53` LR 像素，四帧均通过置信度筛选。模型标定验收正确找回 `defocus, kernel=3`，噪声拟合结果接近生成参数。
+
+## 测试
+
+```bash
+python -m pytest -q
+```
+
+测试覆盖前向位移、噪声校验、位移符号、无纹理拒绝、重建增益、重投影一致性、PSF 标定、对比实验、YAML 优先级和严格 JSON 输出。GitHub Actions 会在 Python 3.9 至 3.12 上执行同一套测试。
+
+## 工程结构
+
+```text
+pixelshiftsr/
+|-- degradation.py       # 成像前向模型及伴随反投影
+|-- registration.py      # 粗配准、ECC 精配准和置信度
+|-- reconstruction.py    # 融合和鲁棒 IBP
+|-- calibration.py       # PSF 与噪声标定
+|-- metrics.py           # 有真值和无真值指标
+|-- reporting.py         # 可追溯、严格 JSON 报告
+|-- config.py            # YAML 配置加载和 CLI 覆盖
+`-- cli.py               # 命令入口
+```
+
+进一步材料：
+
+- [真实数据采集与验收规范](docs/REAL_DATA_PROTOCOL.md)
+- [系统架构说明](docs/ARCHITECTURE.md)
+- [专利技术交底书草案](docs/TECHNICAL_DISCLOSURE.md)
+
+## 当前边界
+
+- 当前运动模型为全局二维平移，存在旋转、透视、局部形变时需要扩展；
+- PSF 当前为圆盘或高斯核，真实镜头可进一步接入实测非对称核；
+- Bayer RAW、坏点、暗场、平场和镜头畸变尚未进入主链路；
+- 无真值清晰度指标只能作为辅助，最终工业价值应由缺陷检出率或尺寸测量误差验证。

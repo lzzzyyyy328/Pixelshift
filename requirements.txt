@@ -3,4 +3,5 @@ opencv-python>=4.8
 scikit-image>=0.21
 matplotlib>=3.7
 tqdm>=4.66
+PyYAML>=6.0
 pytest>=7.0

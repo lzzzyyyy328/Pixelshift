@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Sequence
 import cv2
 import numpy as np
 
@@ -42,19 +42,38 @@ def save_image(path: str | Path, image: np.ndarray, dtype: str = "uint8") -> Non
         raise IOError(f"Failed to save image: {path}")
 
 
-def list_images(folder: str | Path) -> list[Path]:
+def list_images(folder: str | Path, pattern: str = "*") -> list[Path]:
     folder = Path(folder)
-    if not folder.exists():
+    if not folder.is_dir():
         raise FileNotFoundError(folder)
-    files = [p for p in folder.iterdir() if p.suffix.lower() in _IMAGE_EXTS]
+    files = [
+        path
+        for path in folder.glob(pattern)
+        if path.is_file() and path.suffix.lower() in _IMAGE_EXTS
+    ]
     return sorted(files, key=natural_sort_key)
 
 
-def read_image_sequence(folder: str | Path, as_float: bool = True) -> list[np.ndarray]:
-    files = list_images(folder)
+def read_image_sequence(
+    folder: str | Path,
+    as_float: bool = True,
+    pattern: str = "*",
+) -> list[np.ndarray]:
+    files = list_images(folder, pattern=pattern)
     if not files:
-        raise FileNotFoundError(f"No images found in {folder}")
+        raise FileNotFoundError(f"No images matching {pattern!r} found in {folder}")
     return [read_image(p, as_float=as_float) for p in files]
+
+
+def read_image_sequence_with_paths(
+    folder: str | Path,
+    as_float: bool = True,
+    pattern: str = "*",
+) -> tuple[list[np.ndarray], list[Path]]:
+    files = list_images(folder, pattern=pattern)
+    if not files:
+        raise FileNotFoundError(f"No images matching {pattern!r} found in {folder}")
+    return [read_image(path, as_float=as_float) for path in files], files
 
 
 def save_image_sequence(folder: str | Path, frames: Sequence[np.ndarray], prefix: str = "lr", dtype: str = "uint8") -> list[Path]:

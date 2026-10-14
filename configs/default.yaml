@@ -1,27 +1,55 @@
-# PixelShiftSR default configuration
-# This config documents the recommended values. The CLI currently reads arguments
-# directly; use this file as a reproducible record for your experiments.
+schema_version: 1
 
 scale: 2
-shifts: "0,0;0.5,0;0,0.5;0.5,0.5"
-
-# shift_unit:
-#   lr: dx=0.5 means half of a low-resolution sensor pixel. For scale=2, this is 1 HR-grid pixel.
-#   hr: dx=0.5 means directly 0.5 HR-grid pixel. This reproduces the uploaded prototype script.
+shifts:
+  - [0.0, 0.0]
+  - [0.5, 0.0]
+  - [0.0, 0.5]
+  - [0.5, 0.5]
 shift_unit: lr
 
-degradation:
+model:
+  blur_type: defocus
   blur_kernel: 3
   blur_sigma: 0.0
-  blur_stage: after_downsample
-  noise_poisson_a: 0.001
-  noise_gaussian_b: 0.0001
+  blur_stage: before_downsample
   downsample: area
   border: replicate
+
+degradation:
+  noise_poisson_a: 0.001
+  noise_gaussian_b: 0.0001
+  seed: 0
+  output_dtype: uint16
+
+registration:
+  mode: known
+  upsample_factor: 100
+  highpass_sigma: 2.0
+  ecc_iterations: 100
+  min_confidence: 0.20
+  max_shift_lr: 2.0
+  min_accepted_frames: 2
+  keep_rejected: false
 
 reconstruction:
   mode: ibp
   iterations: 80
   step_size: 0.20
+  robust_loss: huber
+  huber_delta: 0.03
+  tolerance: 0.00001
+  patience: 8
+  min_iterations: 10
   tv_weight: 0.0
   laplacian_weight: 0.0
+  no_progress: false
+  save_debug: false
+
+calibration:
+  blur_types: defocus,gaussian
+  blur_kernels: 1,3,5,7
+  blur_sigmas: 0.6,1.0,1.4
+  blur_stage: before_downsample
+  downsample: area
+  border: replicate
